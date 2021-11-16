@@ -10,8 +10,6 @@ public:
 
 private:
 	double duration;
-	std::clock_t timer_start;
-
-	
+	std::clock_t timer_start = std::clock();
 
 };

@@ -1,5 +1,5 @@
 #include "timer.h"
-
+#include "debugmalloc.h"
 
 Timer::Timer(double seconds)
 {
@@ -24,7 +24,7 @@ bool Timer::is_alarmed()
 	double elapsed;
 	std::clock_t now = std::clock();
 
-	elapsed = (now - timer_start) / (double)CLOCKS_PER_SEC;
+	elapsed = ((double)now - timer_start) / (double)CLOCKS_PER_SEC;
 
 	return (elapsed > duration);
 }

@@ -2,6 +2,7 @@
 #include "MKKSocket.h"
 
 #include "timer.h"
+#include "debugmalloc.h"
 
 #include <comdef.h>
 #include <commdlg.h>
@@ -36,6 +37,7 @@ HRESULT VDJ_API MKKBallMaker::OnLoad()
 	char folder[128];									//Elérési útvonal
 	GetStringInfo("get_vdj_folder", folder, 128);		//A VirtualDJ munkamappájának lekérése (working directory)
 	strcat(folder, "\\Plugins64\\MKKData\\MKKLog.txt");	//A naplófájl elérési útvonalának elkészítése
+	debugmalloc_log_file("memlog.txt");
 
 	std::string workingDir = folder;					//A naplófájl elérési útvonala
 
@@ -62,13 +64,13 @@ HRESULT VDJ_API MKKBallMaker::OnLoad()
 
 	//Paraméterek inicializálása
 	is_connected = false;								//Kapcsolat a szerverrel (Offline)
+	connectionError = false;							//Hibás kapcsolat
 	ladies_choice = false;								//Hölgyválasz
 	conSwitch_status = 0;								//A Kapcsolat gomb állása (kikapcsolva)
 	ladiesSwitch_status = 0;							//A Hölgyválasz gomb állása (kikapcsolva)
 	strcpy(connection_status, "Offline");				//Kapcsolat felirata
 	strcpy(ip_address, "localhost");					//A vetítő szerver IP címe
 	strcpy(con_port, "5503");							//A kommunikációs port
-
 
 
 	return S_OK;
@@ -112,7 +114,6 @@ ULONG VDJ_API MKKBallMaker::Release()
 	//Szerver kapcsolat leállítása
 	network.shutdown_server();
 	//Nem tudom mi ez, de kell NE TÖRÖLD KI
-	delete this;
 	return 0;
 }
 //---------------------------------------------------------------------------
@@ -137,23 +138,23 @@ HRESULT VDJ_API MKKBallMaker::OnProcessSamples(float * buffer, int nb)
 {
 	//METAADATOK KÜLDÉSE
 	//Időzítő lekérdezése, csak másodpercenkénti futás érdekében
-	if (timer.is_alarmed()) {
+	//if (timer.is_alarmed()) {
 		try
 		{
-			MKKTrack nowPlaying = MKKTrack(this);				//Most játszott zeneszám lekérése
-				//logger.createLog(INFO, "Sample processed");			//Mintavételezés naplózása
-
-			if (is_connected == TRUE) {
-				logger.createLog(LogLevel::INFO, nowPlaying.createJSON());					//Mintavételezés naplózása
+			MKKTrack nowPlaying = MKKTrack(this);					//Most játszott zeneszám lekérése
+			if (is_connected && !connectionError) {
+				//logger.createLog(LogLevel::INFO, nowPlaying.createJSON());			//Mintavételezés naplózása
 				int result = network.send_message(nowPlaying.createJSON());			//Metaadatok küldése, ha a kapcsolat fenáll
 
 				if (result == ERR_SEND_FAIL) {
 					strcpy(connection_status, "Megszakadt");
 					logger.createLog(LogLevel::ERR, "Kapcsolat megszakadt...");
+					connectionError = true;
 				}
 
 				if (result == ERR_NULLMSG) {
 					logger.createLog(LogLevel::WARNING, "Üres üzenet küldése");
+					connectionError = true;
 				}
 			}
 		}
@@ -163,10 +164,10 @@ HRESULT VDJ_API MKKBallMaker::OnProcessSamples(float * buffer, int nb)
 			message.append(exception.what());
 			logger.createLog(LogLevel::ERR, message);
 			strcpy(connection_status, "Nem várt hiba");
-			is_connected = false;
+			connectionError = true;
 		}
-	}
-	timer.start();										//Időzítő újraindítása
+	//}
+	//timer.start();										//Időzítő újraindítása
 	return S_OK;
 }
 /*
@@ -186,61 +187,8 @@ HRESULT VDJ_API MKKBallMaker::OnParameter(int id) {
 		break;
 		//Kapcsolat beállítása, vagy leállítása gomb
 	case SWITCH_CONNECT:
-
-		//Kapcsolat leállítása
-		if (is_connected == true) {
-			logger.createLog(LogLevel::INFO, "Kapcsolat bontása...");
-			network.shutdown_server();
-			network.init();
-			is_connected = false;
-			strcpy(connection_status,"Offline");
-		}
-		//Kapcsolódás
-		else 
-		{
-			sprintf(loggerBuffer, "Kapcsolódás: %s:%s", ip_address, con_port);
-			logger.createLog(LogLevel::INFO, loggerBuffer);
-			logger.createLog(LogLevel::INFO, "Cím feloldása...");
-			switch (network.resolve(ip_address, con_port)) {
-
-			default:
-			case ERR_NO_DOMAIN:
-				strcpy(connection_status, "Nincs Cím");
-				logger.createLog(LogLevel::ERR, "Domain nem található");
-				is_connected = false;
-				break;
-
-			case ERR_GETADDRINFO_FAIL:
-				strcpy(connection_status, "Rossz Cím");
-				logger.createLog(LogLevel::ERR, "Cím feloldása nem sikerült");
-				is_connected = false;
-				break;
-
-			case ERR_NOERR:
-				int connect_status = network.connect_server();
-				switch (connect_status)
-				{
-				default:
-				case ERR_CONNECT_FAIL:
-					strcpy(connection_status, "Sikertelen");
-					logger.createLog(LogLevel::INFO, "Sikertelen csatlakozás");
-					break;
-				case ERR_INVALID_SOCK:
-					strcpy(connection_status, "Hibás");
-					logger.createLog(LogLevel::INFO, "Kapcsolat megszakadt");
-					break;
-				case ERR_NOERR:
-					strcpy(connection_status, "Online");
-					logger.createLog(LogLevel::INFO, "Sikeres csatlakozás");
-					if (network.recv_message() == ERR_NOERR) {
-						logger.createLog(LogLevel::INFO, network.get_server_input());
-					}
-					break;
-				}
-				is_connected = true;
-				break;
-			}
-		}
+		ToggleConnection(loggerBuffer);
+		is_connected = !is_connected;
 		break;
 		//Hölgyválasz ki-be kapcsolása
 	case SWITCH_LADIES:
@@ -299,6 +247,70 @@ HRESULT VDJ_API MKKBallMaker::OnGetUserInterface(TVdjPluginInterface8* pluginInt
 	*/
 	
 	return S_OK;
+}
+
+void MKKBallMaker::ToggleConnection(char* loggerBuffer) {
+	try {
+		//Kapcsolat leállítása
+		if (is_connected == true) {
+			logger.createLog(LogLevel::INFO, "Kapcsolat bontása...");
+			network.shutdown_server();
+			network.init();
+			strcpy(connection_status, "Offline");
+			connectionError = false;
+		}
+		//Kapcsolódás
+		else
+		{
+			sprintf(loggerBuffer, "Kapcsolódás: %s:%s", ip_address, con_port);
+			logger.createLog(LogLevel::INFO, loggerBuffer);
+			logger.createLog(LogLevel::INFO, "Cím feloldása...");
+			switch (network.resolve(ip_address, con_port)) {
+
+			default:
+			case ERR_NO_DOMAIN:
+				strcpy(connection_status, "Nincs Cím");
+				logger.createLog(LogLevel::ERR, "Domain nem található");
+				connectionError = true;
+
+			case ERR_GETADDRINFO_FAIL:
+				strcpy(connection_status, "Rossz Cím");
+				logger.createLog(LogLevel::ERR, "Cím feloldása nem sikerült");
+				connectionError = true;
+
+			case ERR_NOERR:
+				int connect_status = network.connect_server();
+				switch (connect_status)
+				{
+				default:
+				case ERR_CONNECT_FAIL:
+					strcpy(connection_status, "Sikertelen");
+					logger.createLog(LogLevel::INFO, "Sikertelen csatlakozás");
+					connectionError = true;
+					break;
+				case ERR_INVALID_SOCK:
+					strcpy(connection_status, "Hibás");
+					logger.createLog(LogLevel::INFO, "Kapcsolat megszakadt");
+					connectionError = true;
+					break;
+				case ERR_NOERR:
+					strcpy(connection_status, "Online");
+					logger.createLog(LogLevel::INFO, "Sikeres csatlakozás");
+					if (network.recv_message() == ERR_NOERR) {
+						logger.createLog(LogLevel::INFO, network.get_server_input());
+					}
+					break;
+				}
+				break;
+			}
+		}
+	}
+	catch (const std::exception& exception) {
+		std::string message = "Exception occured during send!: ";
+		message.append(exception.what());
+		logger.createLog(LogLevel::ERR, message);
+		strcpy(connection_status, "Nem várt hiba");
+	}
 }
 
 

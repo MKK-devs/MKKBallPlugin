@@ -1,4 +1,5 @@
 #include "MKKLogger.h"
+#include "debugmalloc.h"
 #include <ctime>
 /*
 Ez az MKK pluginhoz írt naplózó osztály.

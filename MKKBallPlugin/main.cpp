@@ -1,4 +1,5 @@
 #include "MKKBallPlugin.h"
+#include "debugmalloc.h"
 
 
 // This is the standard DLL loader for COM object.

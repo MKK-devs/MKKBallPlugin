@@ -11,6 +11,7 @@ NETWORK.CPP
 #include <iostream>
 
 #include "MKKSocket.h"
+#include "debugmalloc.h"
 
 // Need to link with Ws2_32.lib, Mswsock.lib, and Advapi32.lib
 #pragma comment (lib, "Ws2_32.lib")
@@ -160,7 +161,6 @@ int Network::shutdown_server(void) {
 	// shutdown the connection since no more data will be sent
 	info_result = shutdown(ConnectSocket, SD_BOTH);
 	if (info_result == SOCKET_ERROR) {
-		
 		closesocket(ConnectSocket);
 		WSACleanup();
 		return ERR_SHUTDOWN_FAIL;
@@ -170,7 +170,6 @@ int Network::shutdown_server(void) {
 //-------------------------------------------------------------------------
 Network::~Network() {
 	// cleanup and free memory
-
 	closesocket(ConnectSocket);
 	WSACleanup();
 	if (sendbuffer != nullptr) delete[] sendbuffer;

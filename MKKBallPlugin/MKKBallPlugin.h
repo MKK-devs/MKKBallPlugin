@@ -63,6 +63,7 @@ private:
 	char connection_status[64];		//Kapcsolat a szerverrel (felirat)
 	bool ladies_choice;				//Hölgyválasz állapota
 	bool is_connected;				//Kapcsolat állapota
+	bool connectionError;			//Hibás kapcsolat
 	float headphone_volume;			//Fejhallgató hangereje
 
 	//Gomb Státuszok
@@ -70,6 +71,9 @@ private:
 	int btnPortStatus;				//Port beállítás gomb lenyomva
 	int conSwitch_status;			//Kapcsolat váltás gomb lenyomva
 	int ladiesSwitch_status;		//Hölgyválasz váltás gomb lenyomva
+
+	//Parancsok
+	void ToggleConnection(char* loggerBuffer);
 
 	//Interface
 	HWND pluginWindow = NULL;
