@@ -46,11 +46,8 @@ class Network {
 public:
 	//Public constructor of the Network class. A network is required to have a domain name.
 	Network(string domain_string = "") :ConnectSocket(INVALID_SOCKET), addr_result(NULL),
-		addr_ptr(NULL), recvbuflen(0), domain(NULL), port(NULL), self_id(net_id++) {
-		if (domain_string != "") {
-			domain = new char[domain_string.size()];
-			strcpy_s(domain, domain_string.size(), domain_string.c_str());
-		}
+		addr_ptr(NULL), recvbuflen(0), self_id(net_id++) {
+		
 	}
 
 	//Initializes the Network parameters and other services (such as WSA)
@@ -82,8 +79,6 @@ private:
 	addrinfo *addr_result;
 	addrinfo *addr_ptr;
 	addrinfo addr_hints = addrinfo();
-	//The buffer going to be sent
-	char* sendbuffer = nullptr;
 	//The buffer to be filled with the incoming response
 	char receivebuffer[DEFAULT_BUFLEN] = {};
 	//Contains information about various helper and sub-functions
@@ -92,11 +87,6 @@ private:
 	int recvbuflen = 0;
 
 	//ADDITIONAL VARIABLES
-	
-	//The domain name of the server
-	char* domain = nullptr;
-	//The port of the server
-	char* port = nullptr;
 	//Used for generating unique ID-s for different connections
 	static int net_id;
 	//The unique ID of the network

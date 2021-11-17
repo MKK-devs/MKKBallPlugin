@@ -45,23 +45,11 @@ int Network::resolve(string server, string arg_port) {
 	//Setting up domain
 	if (server == "") {
 		//Searching for default domain
-		if (domain == nullptr) {
-			//No domain name was given!
-			return ERR_NO_DOMAIN;
-		}
+		return ERR_NO_DOMAIN;
 	}
-	else {
-		
-		if (domain != nullptr) delete[] domain;
-		domain = new char[server.size()];
-		strcpy_s(domain, strlen(server.c_str()) + 1, server.c_str());
-	}
-	if (port != nullptr) delete[] port;
-	port = new char[arg_port.size()];
-	strcpy_s(port, strlen(arg_port.c_str()) + 1, arg_port.c_str());
 
 	//Resolving given domain name
-	info_result = getaddrinfo(domain, port, &addr_hints, &addr_result);
+	info_result = getaddrinfo(server.c_str(), arg_port.c_str(), &addr_hints, &addr_result);
 	if (info_result != 0) {
 		//Getaddrinfo failed. Cannot resolve given address
 		WSACleanup();
@@ -115,13 +103,9 @@ int Network::send_message(string msg) {
 		//Sent message is null or empty
 		if (msg == "0") return ERR_NULLMSG;
 		//Clearing sendbuffer and filling with the message
-		if (sendbuffer != nullptr) delete[] sendbuffer;
-		sendbuffer = new char[msg.length()];
-		strcpy_s(sendbuffer, strlen(msg.c_str()) + 1, msg.c_str());
-		sendbuffer[msg.length()] = 0;
 
 		//send buffer through the network
-		info_result = send(ConnectSocket, sendbuffer, (int)strlen(sendbuffer), 0);
+		info_result = send(ConnectSocket, msg.c_str(), msg.size(), 0);
 
 		if (info_result == SOCKET_ERROR) {
 			//Sending failed. 
@@ -172,8 +156,5 @@ Network::~Network() {
 	// cleanup and free memory
 	closesocket(ConnectSocket);
 	WSACleanup();
-	if (sendbuffer != nullptr) delete[] sendbuffer;
-	if (domain != nullptr) delete[] domain;
-	if (port != nullptr) delete[] port;
 }
 //-------------------------------------------------------------------------
